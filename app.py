@@ -8,18 +8,21 @@ import os
 from PIL import Image
 import cv2
 import numpy as np
+from pathlib import Path
+from openai import OpenAI
 
 import torch
 from flask import Flask, render_template, request, redirect, Response
 
 app = Flask(__name__)
+openai_api_key = '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'
 
+client = OpenAI(api_key=openai_api_key)
 
 #'''
 # Load Pre-trained Model
-model = torch.hub.load(
-        "ultralytics/yolov5", "yolov5s", pretrained=True, force_reload=True
-        )#.autoshape()  # force_reload = recache latest code
+model = torch.hub.load("ultralytics/yolov5", "custom", path="./best.pt", force_reload=True)
+
 #'''
 # Load Custom Model
 #model = torch.hub.load("ultralytics/yolov5", "custom", path = "./best_damage.pt", force_reload=True)
@@ -95,6 +98,11 @@ def gen():
 @app.route('/')
 def index():
     
+    return render_template('home.html')
+
+@app.route('/index')
+def adventure():
+    
     return render_template('index.html')
 
 @app.route('/video')
@@ -135,18 +143,43 @@ def predict():
     return render_template("index.html")
 '''
 
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Flask app exposing yolov5 models")
-    parser.add_argument("--port", default=5000, type=int, help="port number")
-    args = parser.parse_args()
-    '''
-    model = torch.hub.load(
-        "ultralytics/yolov5", "yolov5s", pretrained=True, force_reload=True
-    ).autoshape()  # force_reload = recache latest code
-    model.eval()
-    '''
-    app.run(host="0.0.0.0", port=args.port)  # debug=True causes Restarting with stat
+@app.route('/generate_speech', methods=['POST'])
+def generate_speech():
+    # Get the text input from the request
+    text = request.json.get('text', '')
+
+    # Path to save the speech file
+    speech_file_path = Path(__file__).parent / "speech.mp3"
+
+    # Generate speech using OpenAI API
+    response = client.audio.speech.create(
+        model="tts-1",
+        voice="alloy",
+        input=text
+    )
+
+    # Save the speech to a file
+    response.stream_to_file(speech_file_path)
+
+    # Return the URL of the generated speech file
+    return jsonify({
+        'speech_url': str(speech_file_path)
+    })
+# if __name__ == "__main__":
+#     parser = argparse.ArgumentParser(description="Flask app exposing yolov5 models")
+#     parser.add_argument("--port", default=5000, type=int, help="port number")
+#     args = parser.parse_args()
+#     '''
+#     model = torch.hub.load(
+#         "ultralytics/yolov5", "yolov5s", pretrained=True, force_reload=True
+#     ).autoshape()  # force_reload = recache latest code
+#     model.eval()
+#     '''
+#     app.run(host="0.0.0.0", port=args.port)  # debug=True causes Restarting with stat
 
 # Docker Shortcuts
 # docker build --tag yolov5 .
 # docker run --env="DISPLAY" --volume="/tmp/.X11-unix:/tmp/.X11-unix:rw" --device="/dev/video0:/dev/video0" yolov5
+if __name__ == "__main__":
+    port = int(os.environ.get('PORT', 5000))
+    app.run(debug=True, host='0.0.0.0', port=port)
