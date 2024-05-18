@@ -18,13 +18,10 @@ jobs:
         with:
           python-version: '3.10'
 
-      - name: Install system dependencies
-        run: sudo apt-get update && sudo apt-get install -y libgl1-mesa-glx
-
       - name: Create and start virtual environment
         run: |
-          python -m venv venv
-          source venv/bin/activate
+          python -m venv antenv
+          source antenv/bin/activate
 
       - name: Upgrade pip and install Pillow
         run: |
@@ -34,6 +31,9 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
         
+      - name: Make startup script executable
+        run: chmod +x startup.sh
+      
       # Optional: Add step to run tests here (PyTest, Django test suites, etc.)
 
       - name: Zip artifact for deployment
@@ -45,7 +45,7 @@ jobs:
           name: python-app
           path: |
             release.zip
-            !venv/
+            !antenv/
 
   deploy:
     runs-on: ubuntu-latest
@@ -63,9 +63,6 @@ jobs:
       - name: Unzip artifact for deployment
         run: unzip release.zip
 
-      - name: Install system dependencies
-        run: sudo apt-get update && sudo apt-get install -y libgl1-mesa-glx
-
       - name: 'Deploy to Azure Web App'
         uses: azure/webapps-deploy@v2
         id: deploy-to-webapp
@@ -73,3 +70,4 @@ jobs:
           app-name: 'fruittale'
           slot-name: 'Production'
           publish-profile: ${{ secrets.AZUREAPPSERVICE_PUBLISHPROFILE_40204F53B48B41C688CE975E37B18A5A }}
+          startup-command: 'bash startup.sh'

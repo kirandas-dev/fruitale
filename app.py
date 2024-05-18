@@ -12,174 +12,112 @@ from pathlib import Path
 from openai import OpenAI
 
 import torch
-from flask import Flask, render_template, request, redirect, Response
+from flask import Flask, render_template, request, redirect, Response, jsonify
 
 app = Flask(__name__)
 openai_api_key = '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'
-
 client = OpenAI(api_key=openai_api_key)
 
-#'''
-# Load Pre-trained Model
-model = torch.hub.load("ultralytics/yolov5", "custom", path="./best.pt", force_reload=True)
+class ObjectDetection:
+    def __init__(self):
+        self.model = torch.hub.load("ultralytics/yolov5", "custom", path="./best.pt", force_reload=True)
+        self.model.eval()
+        self.model.conf = 0.6  # confidence threshold (0-1)
+        self.model.iou = 0.45  # NMS IoU threshold (0-1)
+        self.detected_object_class = "No object detected"
+        self.detected_object_description = "No description available."
 
-#'''
-# Load Custom Model
-#model = torch.hub.load("ultralytics/yolov5", "custom", path = "./best_damage.pt", force_reload=True)
+    def get_description(self, object_class):
+        descriptions = {
+            "grapes": "Grapes are small, juicy fruits that grow in bunches. They can be red, green, or purple, and are sweet to eat. You can eat them fresh or use them to make juice, jelly, or raisins.",
+            "apple": "Apples are crunchy and sweet fruits that come in many colors like red, green, and yellow. They are very healthy and make a great snack. You can eat them raw or use them to make apple pie or apple juice.",
+            "banana": "Bananas are long, yellow fruits that are very sweet and soft inside. They are easy to peel and make a perfect snack. You can also use them in smoothies or to make banana bread.",
+            "mango": "Mangoes are tropical fruits that are sweet and juicy. They have a large pit inside and come in different colors like yellow, orange, and red. Mangoes are delicious in smoothies, salads, or just by themselves.",
+            "watermelon": "Watermelons are big, green fruits with a sweet, red inside. They are very juicy and perfect for hot days. You can eat watermelon slices or make refreshing watermelon juice.",
+            "orange": "Oranges are round, orange fruits that are very juicy and sweet. They are full of vitamin C and are great for snacks or for making orange juice."
+        }
+        return descriptions.get(object_class, "Description not available.")
 
-# Set Model Settings
-model.eval()
-model.conf = 0.6  # confidence threshold (0-1)
-model.iou = 0.45  # NMS IoU threshold (0-1) 
 
-from io import BytesIO
+    def detect_objects(self, frame):
+        img = Image.open(io.BytesIO(frame))
+        results = self.model(img, size=640)
+
+        if results.xyxy[0].shape[0] > 0:
+            self.detected_object_class = results.names[int(results.xyxy[0][0][5])]
+            self.detected_object_description = self.get_description(self.detected_object_class)
+            print(f"Detected object: {self.detected_object_class}")
+        else:
+            self.detected_object_class = "No object detected"
+            self.detected_object_description = "No description available."
+            print("No object detected")
+
+        img = np.squeeze(results.render())
+        img_BGR = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
+        frame = cv2.imencode('.jpg', img_BGR)[1].tobytes()
+        return frame
+
+detector = ObjectDetection()
 
 def gen():
-    cap=cv2.VideoCapture(0)
-    # Read until video is completed
-    while(cap.isOpened()):
-        
-        # Capture frame-by-fram ## read the camera frame
+    cap = cv2.VideoCapture(0)
+    while cap.isOpened():
         success, frame = cap.read()
-        if success == True:
+        if success:
+            ret, buffer = cv2.imencode('.jpg', frame)
+            frame = buffer.tobytes()
+            frame = detector.detect_objects(frame)
 
-            ret,buffer=cv2.imencode('.jpg',frame)
-            frame=buffer.tobytes()
-            
-            #print(type(frame))
-
-            img = Image.open(io.BytesIO(frame))
-            results = model(img, size=640)
-            #print(results)
-            #print(results.pandas().xyxy[0])
-            #results.render()  # updates results.imgs with boxes and labels
-            results.print()  # print results to screen
-            #results.show() 
-            #print(results.imgs)
-            #print(type(img))
-            #print(results)
-            #plt.imshow(np.squeeze(results.render()))
-            #print(type(img))
-            #print(img.mode)
-            
-            #convert remove single-dimensional entries from the shape of an array
-            img = np.squeeze(results.render()) #RGB
-            # read image as BGR
-            img_BGR = cv2.cvtColor(img, cv2.COLOR_RGB2BGR) #BGR
-
-            #print(type(img))
-            #print(img.shape)
-            #frame = img
-            #ret,buffer=cv2.imencode('.jpg',img)
-            #frame=buffer.tobytes()
-            #print(type(frame))
-            #for img in results.imgs:
-                #img = Image.fromarray(img)
-            #ret,img=cv2.imencode('.jpg',img)
-            #img=img.tobytes()
-
-            #encode output image to bytes
-            #img = cv2.imencode('.jpg', img)[1].tobytes()
-            #print(type(img))
+            yield (b'--frame\r\n'b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')
         else:
             break
-        #print(cv2.imencode('.jpg', img)[1])
-
-        #print(b)
-        #frame = img_byte_arr
-
-        # Encode BGR image to bytes so that cv2 will convert to RGB
-        frame = cv2.imencode('.jpg', img_BGR)[1].tobytes()
-        #print(frame)
-        
-        yield(b'--frame\r\n'b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')
-
 
 @app.route('/')
 def index():
-    
     return render_template('home.html')
 
 @app.route('/index')
 def adventure():
-    
     return render_template('index.html')
 
 @app.route('/video')
 def video():
     """Video streaming route. Put this in the src attribute of an img tag."""
+    return Response(gen(), mimetype='multipart/x-mixed-replace; boundary=frame')
 
-    return Response(gen(),
-                        mimetype='multipart/x-mixed-replace; boundary=frame')
-'''                        
-@app.route('/video')
-def video():
-    return Response(generate_frames(),mimetype='multipart/x-mixed-replace; boundary=frame')
-'''
-'''
-@app.route("/", methods=["GET", "POST"])
-def predict():
-    if request.method == "POST":
-        if "file" not in request.files:
-            return redirect(request.url)
-        file = request.files["file"]
-        if not file:
-            return
-
-        img_bytes = file.read()
-        img = Image.open(io.BytesIO(img_bytes))
-        results = model(img, size=640)
-
-        # for debugging
-        # data = results.pandas().xyxy[0].to_json(orient="records")
-        # return data
-
-        results.render()  # updates results.imgs with boxes and labels
-        for img in results.imgs:
-            img_base64 = Image.fromarray(img)
-            img_base64.save("static/image0.jpg", format="JPEG")
-        return redirect("static/image0.jpg")
-
-    return render_template("index.html")
-'''
+app.config['STATIC_FOLDER'] = 'static'
+static_folder = Path(app.config['STATIC_FOLDER'])
 
 @app.route('/generate_speech', methods=['POST'])
 def generate_speech():
-    # Get the text input from the request
-    text = request.json.get('text', '')
+    # Ensure the static folder exists
+    static_folder.mkdir(exist_ok=True)
 
-    # Path to save the speech file
-    speech_file_path = Path(__file__).parent / "speech.mp3"
+    # Generate a unique filename based on the current timestamp
+    import time
+    unique_filename = f"speech_{int(time.time())}.mp3"
+    speech_file_path = static_folder / unique_filename
+    print("Description of the fruit detected", detector.detected_object_description)
 
     # Generate speech using OpenAI API
     response = client.audio.speech.create(
         model="tts-1",
-        voice="alloy",
-        input=text
+        voice="nova",
+        input=detector.detected_object_description,
+        response_format="mp3"
     )
 
-    # Save the speech to a file
+    # Download the file from the URL response
     response.stream_to_file(speech_file_path)
-
-    # Return the URL of the generated speech file
+    
+    # Return the URL of the generated speech file with a cache-busting parameter
+    # Append a query parameter with a unique value (e.g., timestamp)
     return jsonify({
-        'speech_url': str(speech_file_path)
+        'speech_url': f"{str(speech_file_path)}?v={int(time.time())}"
     })
-# if __name__ == "__main__":
-#     parser = argparse.ArgumentParser(description="Flask app exposing yolov5 models")
-#     parser.add_argument("--port", default=5000, type=int, help="port number")
-#     args = parser.parse_args()
-#     '''
-#     model = torch.hub.load(
-#         "ultralytics/yolov5", "yolov5s", pretrained=True, force_reload=True
-#     ).autoshape()  # force_reload = recache latest code
-#     model.eval()
-#     '''
-#     app.run(host="0.0.0.0", port=args.port)  # debug=True causes Restarting with stat
 
-# Docker Shortcuts
-# docker build --tag yolov5 .
-# docker run --env="DISPLAY" --volume="/tmp/.X11-unix:/tmp/.X11-unix:rw" --device="/dev/video0:/dev/video0" yolov5
+
+
 if __name__ == "__main__":
     port = int(os.environ.get('PORT', 5000))
     app.run(debug=True, host='0.0.0.0', port=port)
