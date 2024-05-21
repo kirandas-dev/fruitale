@@ -10,7 +10,8 @@ import cv2
 import numpy as np
 from pathlib import Path
 from openai import OpenAI
-
+import time
+from flask_socketio import SocketIO, emit
 import torch
 from flask import Flask, render_template, request, redirect, Response, jsonify
 
@@ -18,7 +19,14 @@ app = Flask(__name__)
 openai_api_key = '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'
 client = OpenAI(api_key=openai_api_key)
 
+app.config['STATIC_FOLDER'] = 'static'
+static_folder = Path(app.config['STATIC_FOLDER'])
+socketio = SocketIO(app, cors_allowed_origins="*")
+
+#socketio = SocketIO(app)
+
 class ObjectDetection:
+
     def __init__(self):
         self.model = torch.hub.load("ultralytics/yolov5", "custom", path="./best.pt", force_reload=True)
         self.model.eval()
@@ -26,6 +34,9 @@ class ObjectDetection:
         self.model.iou = 0.45  # NMS IoU threshold (0-1)
         self.detected_object_class = "No object detected"
         self.detected_object_description = "No description available."
+        self.detected_object_images = {}
+        self.object_detected = False
+
 
     def get_description(self, object_class):
         descriptions = {
@@ -38,6 +49,39 @@ class ObjectDetection:
         }
         return descriptions.get(object_class, "Description not available.")
 
+    def get_images(self, object_class):
+        unique_filename_1 = f"apple1.jpeg"
+        image_file_path = static_folder / unique_filename_1
+        unique_filename = f"apple4.gif"
+        image_file_path_1 = static_folder / unique_filename
+
+        images = {
+            "grapes": {
+                "whole": str(image_file_path_1),
+                "sliced": str(image_file_path)
+            },
+            "apple": {
+                "whole": "https://www.shutterstock.com/image-photo/red-apple-isolated-on-white-600nw-1727544364.jpg",
+                "sliced": "https://www.news.wisc.edu/story_images/871/original/apple-slice.jpg"
+            },
+            "banana": {
+                "whole": "https://example.com/whole_banana.jpg",
+                "sliced": "https://example.com/sliced_banana.jpg"
+            },
+            "mango": {
+                "whole": "https://example.com/whole_mango.jpg",
+                "sliced": "https://example.com/sliced_mango.jpg"
+            },
+            "watermelon": {
+                "whole": "https://example.com/whole_watermelon.jpg",
+                "sliced": "https://example.com/sliced_watermelon.jpg"
+            },
+            "orange": {
+                "whole": "https://example.com/whole_orange.jpg",
+                "sliced": "https://example.com/sliced_orange.jpg"
+            }
+        }
+        return images.get(object_class, {"whole": "https://example.com/default_whole.jpg", "sliced": "https://example.com/default_sliced.jpg"})
 
     def detect_objects(self, frame):
         img = Image.open(io.BytesIO(frame))
@@ -46,10 +90,16 @@ class ObjectDetection:
         if results.xyxy[0].shape[0] > 0:
             self.detected_object_class = results.names[int(results.xyxy[0][0][5])]
             self.detected_object_description = self.get_description(self.detected_object_class)
+            self.detected_object_images = self.get_images(self.detected_object_class)
+            self.object_detected = True
+            socketio.emit('fruit_detected', {'detected': True})
             print(f"Detected object: {self.detected_object_class}")
         else:
             self.detected_object_class = "No object detected"
             self.detected_object_description = "No description available."
+            self.detected_object_images = {"whole": "https://example.com/default_whole.jpg", "sliced": "https://example.com/default_sliced.jpg"}
+            self.object_detected = False
+            socketio.emit('fruit_detected', {'detected': False})
             print("No object detected")
 
         img = np.squeeze(results.render())
@@ -85,8 +135,6 @@ def video():
     """Video streaming route. Put this in the src attribute of an img tag."""
     return Response(gen(), mimetype='multipart/x-mixed-replace; boundary=frame')
 
-app.config['STATIC_FOLDER'] = 'static'
-static_folder = Path(app.config['STATIC_FOLDER'])
 
 @app.route('/generate_speech', methods=['POST'])
 def generate_speech():
@@ -94,7 +142,6 @@ def generate_speech():
     static_folder.mkdir(exist_ok=True)
 
     # Generate a unique filename based on the current timestamp
-    import time
     unique_filename = f"speech_{int(time.time())}.mp3"
     speech_file_path = static_folder / unique_filename
     print("Description of the fruit detected", detector.detected_object_description)
@@ -116,7 +163,43 @@ def generate_speech():
         'speech_url': f"{str(speech_file_path)}?v={int(time.time())}"
     })
 
+@app.route('/get_detected_object', methods=['GET'])
+def get_detected_object():
+    
+    # Return the URL of the generated speech file with a cache-busting parameter
+    # Append a query parameter with a unique value (e.g., timestamp)
+    return jsonify({
+        'description': f"{str(detector.detected_object_description)}"
+    })
 
+
+@app.route('/get_detected_fruits', methods=['GET'])
+def get_detected_fruits():
+    return jsonify(detector.detected_object_images)
+
+@app.route('/hint', methods=['GET'])
+def hint():
+    if detector.object_detected:
+        static_folder.mkdir(exist_ok=True)
+        unique_filename = f"speech_{int(time.time())}.mp3"
+        speech_file_path = static_folder / unique_filename
+        # Generate speech using OpenAI API
+        response = client.audio.speech.create(
+            model="tts-1",
+            voice="nova",
+            input="Hmm, I see a fruit, do you?",
+            response_format="mp3"
+        )
+
+        # Download the file from the URL response
+        response.stream_to_file(speech_file_path)
+        
+        # Return the URL of the generated speech file with a cache-busting parameter
+        # Append a query parameter with a unique value (e.g., timestamp)
+        return jsonify({
+            'speech_url': f"{str(speech_file_path)}?v={int(time.time())}"
+        })
+    return jsonify({'hint': ''})
 
 if __name__ == "__main__":
     port = int(os.environ.get('PORT', 5000))

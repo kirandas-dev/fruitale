@@ -7,13 +7,13 @@
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Amatic+SC&display=swap">
     <style>
         /* Define font family */
-        body, h1, h2, .discover-button {
+        body, h1, h2, .discover-button, .popup-button {
             font-family: 'Amatic SC', cursive;
         }
         
         /* Set background color of the entire page to yellow */
         body {
-            background-color: #f9ccca ;
+            background-color: #f9ccca;
         }
 
         .container {
@@ -26,16 +26,17 @@
             position: relative; /* Ensure button is positioned relative to this container */
             border-radius: 25px;
             border: 5px solid #212aad;
-            padding: 0px;
+            overflow: hidden; /* Ensure content stays within the borders */
             width: 100%; /* Set the width of the video container to 100% */
             height: auto; /* Allow it to adjust based on video size */
             text-align: center;
-            position: relative; /* Make it relative to the container */
             cursor: pointer; /* Add cursor pointer on hover */
         }
 
-        .container img {
-            max-width: 100%; /* Make sure the image inside video-container doesn't overflow */
+        .video-container img {
+            width: 100%; /* Ensure the image fills the container */
+            height: auto; /* Maintain aspect ratio */
+            display: block; /* Remove default inline spacing */
         }
 
         /* Style for discover button */
@@ -53,6 +54,25 @@
             cursor: pointer; /* Add cursor pointer on hover */
         }
 
+        /* Style for popup button */
+        .popup-button {
+            position: absolute; /* Position the button relative to the video container */
+            top: 10px; /* Adjust button's distance from the top */
+            right: 10px; /* Align button to the right */
+            width: 40px; /* Set width */
+            height: 40px; /* Set height to match width for circular shape */
+            font-size: 20px; /* Adjust font size to fit within the button */
+            background-color: #212aad; /* Button background color */
+            color: white; /* Button text color */
+            border: none; /* Remove button border */
+            border-radius: 50%; /* Make the button circular */
+            cursor: pointer; /* Add cursor pointer on hover */
+            display: flex; /* Center the text within the button */
+            align-items: center; /* Center the text vertically */
+            justify-content: center; /* Center the text horizontally */
+        }
+
+
         /* Style for fruit images */
         .fruit-images {
             margin-top: 20px;
@@ -61,11 +81,41 @@
             flex-wrap: wrap;
         }
 
-        .fruit-images img {
-            width: 100px;
-            height: 100px;
+        .fruit-container {
+            position: relative;
+            display: inline-block;
             margin: 10px;
-            border-radius: 5px;
+        }
+
+        .fruit-images img {
+            width: 160px;
+            height: 180px;
+            border-radius: 15px; /* Round the corners */
+            border: 3px solid #212aad; /* Add border to fruit images */
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2); /* Add shadow */
+            transition: transform 0.3s, box-shadow 0.3s; /* Smooth transition for hover effects */
+        }
+
+        .fruit-images img:hover {
+            transform: scale(1.1); /* Slightly enlarge the image on hover */
+            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.3); /* Enhance shadow on hover */
+        }
+
+        /* Style for knife button */
+        .knife-button {
+            position: absolute;
+            bottom: 10px;
+            right: 5px;
+            width: 30px;
+            height: 30px;
+            background-color: #ff6347;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
 
         /* Style for popup text */
@@ -89,6 +139,8 @@
             cursor: pointer;
         }
     </style>
+    <script src="https://cdn.socket.io/4.0.0/socket.io.min.js"></script>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 </head>
   
 <body>
@@ -100,7 +152,7 @@
 
     <div class="container">
         <div class="video-container">
-            <img src="{{ url_for('video') }}" class="container"></img>
+            <img src="{{ url_for('video') }}" alt="Camera View" />
             <!-- Popup text -->
             <div class="popup-text">
                 <p id="object-description">This is an apple. Apples are a popular fruit with a sweet taste.</p>
@@ -108,7 +160,9 @@
                 <span class="close-button" onclick="closePopup()">X</span>
             </div>
             <!-- Discover button -->
-            <button class="discover-button" onclick="showFruitInfo()">Discover</button>
+            <button class="discover-button" onclick="showFruitImages()">Discover</button>
+            <!-- Popup button -->
+            <button class="popup-button" onclick="showPopup()">i</button>
         </div>
     </div>
 
@@ -118,41 +172,66 @@
     </div>
 
     <script>
+        // Define the functions globally
         function showFruitImages() {
             // Get the container for fruit images
             var fruitImagesContainer = document.querySelector('.fruit-images');
 
-            // Dummy data - replace this with actual data received from image detection
-            var fruitImages = [
-                'https://www.shutterstock.com/image-photo/red-apple-isolated-on-white-600nw-1727544364.jpg',
-                'https://www.news.wisc.edu/story_images/871/original/apple-slice.jpg',
-                'https://thumbs.dreamstime.com/b/green-apple-clipping-path-19314372.jpg'
-                // Add more image URLs as needed
-            ];
+            // Fetch detected fruit data from the server
+            fetch('/get_detected_fruits')
+                .then(response => response.json())
+                .then(fruit => {
+                    // Clear previous content
+                    fruitImagesContainer.innerHTML = '';
 
-            // Clear previous content
-            fruitImagesContainer.innerHTML = '';
+                    // Create and append image elements with knife button
+                    const fruitContainer = document.createElement('div');
+                    fruitContainer.classList.add('fruit-container');
 
-            // Create and append image elements
-            fruitImages.forEach(function(imageUrl) {
-                var img = document.createElement('img');
-                img.src = imageUrl;
-                fruitImagesContainer.appendChild(img);
-            });
+                    const img = document.createElement('img');
+                    img.src = fruit.whole;
+                    img.dataset.whole = fruit.whole;
+                    img.dataset.sliced = fruit.sliced;
 
-            // Show the container
-            fruitImagesContainer.style.display = 'block';
+                    const knifeButton = document.createElement('button');
+                    knifeButton.classList.add('knife-button');
+                    knifeButton.innerText = '🔪';
+                    knifeButton.onclick = function() {
+                        if (img.src === fruit.whole) {
+                            img.src = fruit.sliced;
+                        } else {
+                            img.src = fruit.whole;
+                        }
+                    };
 
+                    fruitContainer.appendChild(img);
+                    fruitContainer.appendChild(knifeButton);
+                    fruitImagesContainer.appendChild(fruitContainer);
+
+                    // Show the container
+                    fruitImagesContainer.style.display = 'flex';
+
+                    fetchDescription().then(description => {
+                        playSpeech(description); // Play speech for the current description
+                    }).catch(error => {
+                        console.error('Error fetching description:', error);
+                    });
+                })
+                .catch(error => {
+                    console.error('Error fetching fruit data:', error);
+                });
+
+            resetHintTimeout();
         }
 
-        // Show popup text and trigger speech when "Discover" button is clicked
-        function showFruitInfo() {
+        // Show popup text when the popup button is clicked
+        function showPopup() {
             fetchDescription().then(description => {
                 document.getElementById('object-description').innerText = description;
                 document.querySelector('.popup-text').style.display = 'block';
-                playSpeech(description); // Play speech for the current description
+            }).catch(error => {
+                console.error('Error fetching description:', error);
             });
-            showFruitImages(); // Call this function if you want to also show the fruit images when the popup is displayed
         }
 
         // Close popup text when clicking the close button
@@ -171,24 +250,68 @@
                 });
         }
 
-        // Function to play speech
-        function playSpeech(text) {
-            // Use fetch or other appropriate method to send the text to your server-side script to generate speech and return the speech URL
-            fetch('/generate_speech', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ text: text })
-            })
-            .then(response => response.json())
-            .then(data => {
-                // Use the returned speech URL to play the speech
-                var audio = new Audio(data.speech_url);
-                audio.play();
-            })
-            .catch(error => console.error('Error:', error));
+    // Function to play speech
+    function playSpeech(text) {
+        fetch('/generate_speech', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ text: text })
+        })
+        .then(response => response.json())
+        .then(data => {
+            // Use the returned speech URL to play the speech
+            var audio = new Audio(data.speech_url);
+            audio.play();
+        })
+        .catch(error => console.error('Error generating speech:', error));
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+    var socket = io();
+
+    let hintTimeout;
+    let isObjectDetected = false;
+
+    socket.on('fruit_detected', function(data) {
+        if (data.detected) {
+            console.log('Fruit detected:', data.detected);
+            if (!isObjectDetected) {
+                isObjectDetected = true;
+                startHintTimeout();
+            }
+        } else {
+            console.log('No object detected');
+            isObjectDetected = false;
+            clearHintTimeout();
         }
-    </script>
-</body>
-</html>
+    });
+
+    function startHintTimeout() {
+        console.log('Starting hint timeout');
+        hintTimeout = setTimeout(() => {
+            console.log('Fetching hint');
+            fetch('/hint')
+                .then(response => {
+                    console.log('Hint response received');
+                    return response.json();
+                })
+                .then(data => {
+                    if (data.speech_url) {
+                        console.log('Playing audio from:', data.speech_url);
+                        var audio = new Audio(data.speech_url);
+                        audio.play();
+                    }
+                })
+                .catch(error => console.error('Error fetching hint:', error));
+        }, 5000);  // 5 seconds of continuous detection
+    }
+
+    function clearHintTimeout() {
+        console.log('Clearing hint timeout');
+        clearTimeout(hintTimeout);
+    }
+});
+
+</script>
