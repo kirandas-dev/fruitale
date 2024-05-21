@@ -1,35 +1,70 @@
-# Yolov5 Object Detection on Live Stream Video via Flask
-![framework](https://img.shields.io/badge/framework-flask-red)
-![libraries](https://img.shields.io/badge/libraries-opencv-green)
-![models](https://img.shields.io/badge/models-yolov5-yellow)
+# Wonderland of Fruits
 
-The Yolov5s pretained model is deployed using flask.
-This repo contains example apps for exposing the [yolo5](https://github.com/ultralytics/yolov5) object detection model from [pytorch hub](https://pytorch.org/hub/ultralytics_yolov5/) via a [flask](https://flask.palletsprojects.com/en/1.1.x/) api/app.
+Welcome to the Wonderland of Fruits! This interactive web application detects fruit objects through a video feed and provides hints through audio messages when fruits are detected continuously for a specific period.
 
+## Table of Contents
 
+- [Overview](#overview)
+- [Features](#features)
+- [Technologies Used](#technologies-used)
+- [Setup and Installation](#setup-and-installation)
+- [Usage](#usage)
+- [Project Structure](#project-structure)
+- [License](#license)
 
-## Web app
-Simple app that enables live webcam detection using pretrained YOLOv5s weights and see real time inference result of the model in the browser.
+## Overview
 
-![yolov5-real-time](https://user-images.githubusercontent.com/69728128/156182901-98c58df9-d23f-4e92-a4aa-7a9d9dc8ba67.JPG)
+The Wonderland of Fruits application uses a video feed to detect fruit objects in real-time. When a fruit is detected continuously for 5 seconds, the app fetches a hint from the server and plays an audio message. The app also provides options to display and interact with images of the detected fruits.
 
-## Run & Develop locally
-Run locally and dev:
-* `conda create -n <VENV>`
-* `conda activate <VENV>`
-* `(<VENV>) $ pip install -r requirements.txt`
-* `(<VENV>) $ flask run`
+## Features
 
-## Docker
-The example dockerfile shows how to expose the rest API:
-```
-# Build
-docker build -t yolov5 .
-# Run
-docker run -p 5000:5000 yolov5-flask:latest
-```
+- Real-time fruit detection using a video feed
+- Audio hints triggered by continuous fruit detection
+- Interactive display of detected fruit images
+- Toggle between whole and sliced fruit images
 
-## reference
-- https://github.com/ultralytics/yolov5
-- https://github.com/jzhang533/yolov5-flask
-- https://github.com/avinassh/pytorch-flask-api-heroku
+## Technologies Used
+
+- **Frontend**: HTML, CSS, JavaScript, Socket.IO, jQuery
+- **Backend**: Python, Flask
+- **API**: OpenAI API for generating speech
+- **Other**: Socket.IO for real-time communication, Flask for serving static files and handling requests
+
+## Setup and Installation
+
+1. **Clone the Repository**:
+    ```sh
+    git clone https://github.com/yourusername/wonderland-of-fruits.git
+    cd wonderland-of-fruits
+    ```
+
+2. **Install Dependencies**:
+    Ensure you have Python and pip installed. Then, install the required Python packages:
+    ```sh
+    pip install flask
+    pip install openai
+    pip install pathlib
+    ```
+
+3. **Run the Flask App**:
+    ```sh
+    python app.py
+    ```
+
+4. **Access the Application**:
+    Open your web browser and go to `http://127.0.0.1:5000`.
+
+## Usage
+
+1. **Real-Time Detection**:
+   - The app will start detecting fruits through the video feed.
+   - When a fruit is detected continuously for 5 seconds, an audio hint will be played.
+
+2. **Interacting with Detected Fruits**:
+   - Click the "Discover" button to see images of detected fruits.
+   - Click the knife button on the fruit images to toggle between whole and sliced images.
+
+3. **Viewing Object Descriptions**:
+   - Click the "i" button to view a description of the detected object.
+
+## Project Structure
