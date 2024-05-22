@@ -50,35 +50,31 @@ class ObjectDetection:
         return descriptions.get(object_class, "Description not available.")
 
     def get_images(self, object_class):
-        unique_filename_1 = f"apple1.jpeg"
-        image_file_path = static_folder / unique_filename_1
-        unique_filename = f"apple4.gif"
-        image_file_path_1 = static_folder / unique_filename
 
         images = {
             "grapes": {
-                "whole": str(image_file_path_1),
-                "sliced": str(image_file_path)
+                "whole": str(static_folder/ f"grapes.gif"),
+                "sliced": str(static_folder/ f"grapes.webp")
             },
             "apple": {
-                "whole": "https://www.shutterstock.com/image-photo/red-apple-isolated-on-white-600nw-1727544364.jpg",
-                "sliced": "https://www.news.wisc.edu/story_images/871/original/apple-slice.jpg"
+                "whole": str(static_folder/ f"apple.gif"),
+                "sliced": str(static_folder/ f"apple.jpeg")
             },
             "banana": {
-                "whole": "https://example.com/whole_banana.jpg",
-                "sliced": "https://example.com/sliced_banana.jpg"
+                "whole": str(static_folder/ f"banana.gif"),
+                "sliced": str(static_folder/ f"banana.png")
             },
             "mango": {
-                "whole": "https://example.com/whole_mango.jpg",
-                "sliced": "https://example.com/sliced_mango.jpg"
+               "whole": str(static_folder/ f"mangoes.gif"),
+                "sliced": str(static_folder/ f"mangoes.webp")
             },
             "watermelon": {
-                "whole": "https://example.com/whole_watermelon.jpg",
-                "sliced": "https://example.com/sliced_watermelon.jpg"
+               "whole": str(static_folder/ f"watermelon.gif"),
+                "sliced": str(static_folder/ f"watermelonsliced.webp")
             },
             "orange": {
-                "whole": "https://example.com/whole_orange.jpg",
-                "sliced": "https://example.com/sliced_orange.jpg"
+              "whole": str(static_folder/ f"oranges.gif"),
+                "sliced": str(static_folder/ f"oranges.jpeg")
             }
         }
         return images.get(object_class, {"whole": "https://example.com/default_whole.jpg", "sliced": "https://example.com/default_sliced.jpg"})

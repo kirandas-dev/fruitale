@@ -54,24 +54,23 @@
             cursor: pointer; /* Add cursor pointer on hover */
         }
 
-        /* Style for popup button */
         .popup-button {
-            position: absolute; /* Position the button relative to the video container */
-            top: 10px; /* Adjust button's distance from the top */
-            right: 10px; /* Align button to the right */
-            width: 40px; /* Set width */
-            height: 40px; /* Set height to match width for circular shape */
-            font-size: 20px; /* Adjust font size to fit within the button */
-            background-color: #212aad; /* Button background color */
-            color: white; /* Button text color */
-            border: none; /* Remove button border */
-            border-radius: 50%; /* Make the button circular */
-            cursor: pointer; /* Add cursor pointer on hover */
-            display: flex; /* Center the text within the button */
-            align-items: center; /* Center the text vertically */
-            justify-content: center; /* Center the text horizontally */
-        }
-
+                position: absolute; /* Position the button relative to the video container */
+                top: 10px; /* Adjust button's distance from the top */
+                right: 10px; /* Align button to the right */
+                width: 40px; /* Set width */
+                height: 40px; /* Set height to match width for circular shape */
+                font-size: 20px; /* Adjust font size to fit within the button */
+                font-weight: bold; /* Make the font bold */
+                background-color: #212aad; /* Button background color */
+                color: white; /* Button text color */
+                border: none; /* Remove button border */
+                border-radius: 50%; /* Make the button circular */
+                cursor: pointer; /* Add cursor pointer on hover */
+                display: flex; /* Center the text within the button */
+                align-items: center; /* Center the text vertically */
+                justify-content: center; /* Center the text horizontally */
+            }
 
         /* Style for fruit images */
         .fruit-images {
@@ -170,49 +169,88 @@
     <div class="container fruit-images" style="display: none;">
         <!-- Images will be dynamically added here -->
     </div>
-
     <script>
-        // Define the functions globally
+        let isDiscoverButtonClicked = false; // Flag to track discover button click
+        let isHintTimeoutActive = false; // Flag to track if the hint timeout is active
+        let hintTimeout; // Variable to store hint timeout
+        let currentAudio = null; // Variable to keep track of the current audio
+        let isDescriptionPlaying = false; // Flag to track if the description audio is playing
+    
+        function normalizeUrl(url) {
+            var a = document.createElement('a');
+            a.href = url;
+            return a.href;
+        }
+    
         function showFruitImages() {
+            if (isDiscoverButtonClicked) {
+                return; // Prevent multiple clicks within 15 seconds
+            }
+    
+            isDiscoverButtonClicked = true; // Set the flag when discover button is clicked
+    
+            // Disable the discover button
+            const discoverButton = document.querySelector('.discover-button');
+            discoverButton.disabled = true;
+            discoverButton.style.opacity = 0.5; // Optional: Add visual feedback for disabled state
+    
+            // Re-enable the discover button after 15 seconds
+            setTimeout(() => {
+                isDiscoverButtonClicked = false;
+                discoverButton.disabled = false;
+                discoverButton.style.opacity = 1; // Optional: Reset visual feedback
+            }, 15000); // 15 seconds
+    
             // Get the container for fruit images
             var fruitImagesContainer = document.querySelector('.fruit-images');
-
+    
             // Fetch detected fruit data from the server
             fetch('/get_detected_fruits')
                 .then(response => response.json())
                 .then(fruit => {
+                    // Check the fetched fruit object
+                    console.log('Fetched fruit data:', fruit);
+    
                     // Clear previous content
                     fruitImagesContainer.innerHTML = '';
-
+    
                     // Create and append image elements with knife button
                     const fruitContainer = document.createElement('div');
                     fruitContainer.classList.add('fruit-container');
-
+    
                     const img = document.createElement('img');
-                    img.src = fruit.whole;
-                    img.dataset.whole = fruit.whole;
-                    img.dataset.sliced = fruit.sliced;
-
+                    img.src = normalizeUrl(fruit.whole);
+                    img.dataset.whole = normalizeUrl(fruit.whole);
+                    img.dataset.sliced = normalizeUrl(fruit.sliced);
+    
+                    // Create knife button
                     const knifeButton = document.createElement('button');
                     knifeButton.classList.add('knife-button');
                     knifeButton.innerText = '🔪';
                     knifeButton.onclick = function() {
-                        if (img.src === fruit.whole) {
-                            img.src = fruit.sliced;
+                        console.log('Knife button clicked');
+                        console.log('Current image src:', img.src);
+                        console.log('Whole image src:', img.dataset.whole);
+                        console.log('Sliced image src:', img.dataset.sliced);
+    
+                        if (img.src === img.dataset.whole) {
+                            img.src = img.dataset.sliced;
                         } else {
-                            img.src = fruit.whole;
+                            img.src = img.dataset.whole;
                         }
+    
+                        console.log('Updated image src:', img.src);
                     };
-
+    
                     fruitContainer.appendChild(img);
                     fruitContainer.appendChild(knifeButton);
                     fruitImagesContainer.appendChild(fruitContainer);
-
+    
                     // Show the container
                     fruitImagesContainer.style.display = 'flex';
-
+    
                     fetchDescription().then(description => {
-                        playSpeech(description); // Play speech for the current description
+                        playDescriptionSpeech(description); // Play speech for the current description
                     }).catch(error => {
                         console.error('Error fetching description:', error);
                     });
@@ -220,10 +258,10 @@
                 .catch(error => {
                     console.error('Error fetching fruit data:', error);
                 });
-
-            resetHintTimeout();
+    
+            clearHintTimeout(); // Clear any existing hint timeout
         }
-
+    
         // Show popup text when the popup button is clicked
         function showPopup() {
             fetchDescription().then(description => {
@@ -233,12 +271,12 @@
                 console.error('Error fetching description:', error);
             });
         }
-
+    
         // Close popup text when clicking the close button
         function closePopup() {
             document.querySelector('.popup-text').style.display = 'none';
         }
-
+    
         // Function to fetch the detected object description from the server
         function fetchDescription() {
             return fetch('/get_detected_object')
@@ -249,69 +287,86 @@
                     return 'Description not available.';
                 });
         }
-
-    // Function to play speech
-    function playSpeech(text) {
-        fetch('/generate_speech', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ text: text })
-        })
-        .then(response => response.json())
-        .then(data => {
-            // Use the returned speech URL to play the speech
-            var audio = new Audio(data.speech_url);
-            audio.play();
-        })
-        .catch(error => console.error('Error generating speech:', error));
-    }
-
-    document.addEventListener('DOMContentLoaded', function() {
-    var socket = io();
-
-    let hintTimeout;
-    let isObjectDetected = false;
-
-    socket.on('fruit_detected', function(data) {
-        if (data.detected) {
-            console.log('Fruit detected:', data.detected);
-            if (!isObjectDetected) {
-                isObjectDetected = true;
-                startHintTimeout();
-            }
-        } else {
-            console.log('No object detected');
-            isObjectDetected = false;
-            clearHintTimeout();
+    
+        // Function to play description speech
+        function playDescriptionSpeech(text) {
+            fetch('/generate_speech', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ text: text })
+            })
+            .then(response => response.json())
+            .then(data => {
+                // Stop the currently playing audio, if any
+                if (currentAudio) {
+                    currentAudio.pause();
+                    currentAudio.currentTime = 0;
+                }
+                // Use the returned speech URL to play the speech
+                currentAudio = new Audio(data.speech_url);
+                isDescriptionPlaying = true; // Set flag to indicate description is playing
+                currentAudio.play();
+                currentAudio.onended = () => {
+                    isDescriptionPlaying = false; // Reset flag when audio ends
+                };
+            })
+            .catch(error => console.error('Error generating speech:', error));
         }
-    });
-
-    function startHintTimeout() {
-        console.log('Starting hint timeout');
-        hintTimeout = setTimeout(() => {
-            console.log('Fetching hint');
-            fetch('/hint')
-                .then(response => {
-                    console.log('Hint response received');
-                    return response.json();
-                })
-                .then(data => {
-                    if (data.speech_url) {
-                        console.log('Playing audio from:', data.speech_url);
-                        var audio = new Audio(data.speech_url);
-                        audio.play();
+    
+        document.addEventListener('DOMContentLoaded', function() {
+            var socket = io();
+    
+            let isObjectDetected = false;
+    
+            socket.on('fruit_detected', function(data) {
+                if (data.detected) {
+                    console.log('Fruit detected:', data.detected);
+                    if (!isObjectDetected && !isHintTimeoutActive) {
+                        isObjectDetected = true;
+                        startHintTimeout();
                     }
-                })
-                .catch(error => console.error('Error fetching hint:', error));
-        }, 5000);  // 5 seconds of continuous detection
-    }
-
-    function clearHintTimeout() {
-        console.log('Clearing hint timeout');
-        clearTimeout(hintTimeout);
-    }
-});
-
-</script>
+                } else {
+                    console.log('No object detected');
+                    isObjectDetected = false;
+                    clearHintTimeout();
+                }
+            });
+    
+            function startHintTimeout() {
+                console.log('Starting hint timeout');
+                isHintTimeoutActive = true;
+                hintTimeout = setTimeout(() => {
+                    if (!isDescriptionPlaying) { // Only play hint if description is not playing
+                        console.log('Fetching hint');
+                        fetch('/hint')
+                            .then(response => {
+                                console.log('Hint response received');
+                                return response.json();
+                            })
+                            .then(data => {
+                                if (data.speech_url) {
+                                    console.log('Playing audio from:', data.speech_url);
+                                    // Stop the currently playing audio, if any
+                                    if (currentAudio) {
+                                        currentAudio.pause();
+                                        currentAudio.currentTime = 0;
+                                    }
+                                    currentAudio = new Audio(data.speech_url);
+                                    currentAudio.play();
+                                }
+                            })
+                            .catch(error => console.error('Error fetching hint:', error));
+                    }
+                    isHintTimeoutActive = false; // Reset flag after hint is fetched
+                }, 15000);  // 15 seconds of continuous detection
+            }
+    
+            function clearHintTimeout() {
+                console.log('Clearing hint timeout');
+                clearTimeout(hintTimeout);
+                isHintTimeoutActive = false; // Reset flag when hint timeout is cleared
+            }
+        });
+    </script>
