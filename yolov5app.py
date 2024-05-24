@@ -28,7 +28,7 @@ socketio = SocketIO(app, cors_allowed_origins="*")
 class ObjectDetection:
 
     def __init__(self):
-        self.model = torch.hub.load("ultralytics/yolov5", "custom", path="./best.pt", force_reload=True)
+        self.model = torch.hub.load("ultralytics/yolov5", "custom", path="./model_weights/yolov5.pt", force_reload=True)
         self.model.eval()
         self.model.conf = 0.6  # confidence threshold (0-1)
         self.model.iou = 0.45  # NMS IoU threshold (0-1)
@@ -77,7 +77,7 @@ class ObjectDetection:
                 "sliced": str(static_folder/ f"oranges.jpeg")
             }
         }
-        return images.get(object_class, {"whole": "https://example.com/default_whole.jpg", "sliced": "https://example.com/default_sliced.jpg"})
+        return images.get(object_class, {"whole": str(static_folder/ f"nd.png"), "sliced": str(static_folder/ f"nd.png")})
 
     def detect_objects(self, frame):
         img = Image.open(io.BytesIO(frame))
@@ -93,12 +93,13 @@ class ObjectDetection:
         else:
             self.detected_object_class = "No object detected"
             self.detected_object_description = "No description available."
-            self.detected_object_images = {"whole": "https://example.com/default_whole.jpg", "sliced": "https://example.com/default_sliced.jpg"}
+            self.detected_object_images = {"whole": str(static_folder/ f"nd.png"), "sliced": str(static_folder/ f"nd.png")}
             self.object_detected = False
             socketio.emit('fruit_detected', {'detected': False})
             print("No object detected")
 
         img = np.squeeze(results.render())
+        
         img_BGR = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
         frame = cv2.imencode('.jpg', img_BGR)[1].tobytes()
         return frame
