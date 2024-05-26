@@ -1,10 +1,3 @@
-"""
-This is the main app that loads Yolov7 for real time video inferencing. 
-This app checks if an object has been detected by a detector object (fruits in our use case).
-If a fruit is detected, the code proceeds to generate a speech using the OpenAI API. It creates a unique filename for the speech file by appending the current timestamp to the filename. The speech is generated with the text "Hmm, I see a fruit, do you?" using the OpenAI API's text-to-speech functionality.
-The generated speech is then downloaded and saved to a file path specified by speech_file_path. The response.stream_to_file() method is used to download the file from the URL response and save it to the specified path.
-Lastly, the code returns a JSON response using the jsonify() function. If an object is detected, it returns the URL of the generated speech file with a cache-busting parameter appended to it. The cache-busting parameter ensures that the latest version of the speech file is always fetched. If no object is detected, it returns an empty hint.
-"""
 import torch
 import os
 import io
@@ -61,12 +54,19 @@ class ObjectDetection:
             "orange": {"whole": str(static_folder / "oranges.gif"), "sliced": str(static_folder / "oranges.jpeg")}
         }
         return images.get(object_class, {"whole": str(static_folder/ f"nd.png"), "sliced": str(static_folder/ f"nd.png")})
-
     def detect_objects(self, frame):
         try:
+            # Open the image from bytes
             img = Image.open(io.BytesIO(frame))
-            results = self.model(img, size=640)
+            
+            # Convert the image to a writable NumPy array (RGB format for the model)
+            img_array = np.array(img)
+            img_array.setflags(write=1)  # Ensure the NumPy array is writable
 
+            # Perform object detection
+            results = self.model(img_array, size=640)
+
+            # Check if any objects are detected
             if results.xyxy[0].shape[0] > 0:
                 self.detected_object_class = results.names[int(results.xyxy[0][0][5])]
                 self.detected_object_description = self.get_description(self.detected_object_class)
@@ -79,16 +79,21 @@ class ObjectDetection:
                 socketio.emit('fruit_detected', {'detected': False})
                 print("No object detected")
 
-            img = np.squeeze(results.render())            
-            img.setflags(write=1)  # Ensure the NumPy array is writable
+            # Render the detection results on the image
+            img_with_boxes = np.squeeze(results.render())
+            img_with_boxes.setflags(write=1)  # Ensure the NumPy array is writable
 
-            img_BGR = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
+            # Convert the rendered image to BGR format for OpenCV
+            img_BGR = cv2.cvtColor(img_with_boxes, cv2.COLOR_RGB2BGR)
+
+            # Encode the frame back to bytes
             frame = cv2.imencode('.jpg', img_BGR)[1].tobytes()
             return frame
         except Exception as e:
             print(f"Error detecting objects: {e}")
             self.reset_detection()
             return frame
+
 
     def reset_detection(self):
         self.detected_object_class = "No object detected"
