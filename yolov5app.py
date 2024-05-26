@@ -1,6 +1,9 @@
 """
-Simple app to upload an image via a web form 
-and view the inference results on the image in the browser.
+This is the main app that loads Yolov5 for real time video inferencing. 
+This app checks if an object has been detected by a detector object (fruits in our use case).
+If a fruit is detected, the code proceeds to generate a speech using the OpenAI API. It creates a unique filename for the speech file by appending the current timestamp to the filename. The speech is generated with the text "Hmm, I see a fruit, do you?" using the OpenAI API's text-to-speech functionality.
+The generated speech is then downloaded and saved to a file path specified by speech_file_path. The response.stream_to_file() method is used to download the file from the URL response and save it to the specified path.
+Lastly, the code returns a JSON response using the jsonify() function. If an object is detected, it returns the URL of the generated speech file with a cache-busting parameter appended to it. The cache-busting parameter ensures that the latest version of the speech file is always fetched. If no object is detected, it returns an empty hint.
 """
 import argparse
 import io
@@ -11,15 +14,15 @@ import numpy as np
 from pathlib import Path
 from openai import OpenAI
 import time
-from flask_socketio import SocketIO, emit
+from flask_socketio import SocketIO
 import torch
-from flask import Flask, render_template, request, redirect, Response, jsonify
+from flask import Flask, render_template , Response, jsonify
 
 app = Flask(__name__)
 openai_api_key = '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'
 client = OpenAI(api_key=openai_api_key)
 
-app.config['STATIC_FOLDER'] = 'static'
+app.config['STATIC_FOLDER'] = 'static/images'
 static_folder = Path(app.config['STATIC_FOLDER'])
 socketio = SocketIO(app, cors_allowed_origins="*")
 
@@ -123,9 +126,9 @@ def gen():
 def index():
     return render_template('home.html')
 
-@app.route('/index')
+@app.route('/apppage')
 def adventure():
-    return render_template('index.html')
+    return render_template('apppage.html')
 
 @app.route('/video')
 def video():

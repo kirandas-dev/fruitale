@@ -1,10 +1,17 @@
+"""
+This is the main app that loads Yolov7 for real time video inferencing. 
+This app checks if an object has been detected by a detector object (fruits in our use case).
+If a fruit is detected, the code proceeds to generate a speech using the OpenAI API. It creates a unique filename for the speech file by appending the current timestamp to the filename. The speech is generated with the text "Hmm, I see a fruit, do you?" using the OpenAI API's text-to-speech functionality.
+The generated speech is then downloaded and saved to a file path specified by speech_file_path. The response.stream_to_file() method is used to download the file from the URL response and save it to the specified path.
+Lastly, the code returns a JSON response using the jsonify() function. If an object is detected, it returns the URL of the generated speech file with a cache-busting parameter appended to it. The cache-busting parameter ensures that the latest version of the speech file is always fetched. If no object is detected, it returns an empty hint.
+"""
 import torch
 import os
 import io
 from PIL import Image
 import numpy as np
 import cv2
-from flask import Flask, render_template, request, Response, jsonify
+from flask import Flask, render_template, Response, jsonify
 from flask_socketio import SocketIO
 from pathlib import Path
 from openai import OpenAI
@@ -13,7 +20,7 @@ import time
 app = Flask(__name__)
 openai_api_key = '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'
 client = OpenAI(api_key=openai_api_key)
-app.config['STATIC_FOLDER'] = 'static'
+app.config['STATIC_FOLDER'] = 'static/images'
 static_folder = Path(app.config['STATIC_FOLDER'])
 socketio = SocketIO(app, cors_allowed_origins="*")
 
@@ -21,11 +28,7 @@ class ObjectDetection:
 
     def __init__(self):
         try:
-            #self.model = torch.hub.load("WongKinYiu/yolov7", "custom", path="./best.pt", force_reload=True)
-            self.model = torch.hub.load('WongKinYiu/yolov7', 'custom', './model_weights/yolov7.pt',force_reload=True, trust_repo=True)
-            #self.model = custom(path_or_model='yolov7.pt')  # custom example
-# model = create(name='yolov7', pretrained=True, channels=3, classes=80, autoshape=True)  # pretrained example
-
+            self.model = torch.hub.load('WongKinYiu/yolov7', 'custom', './model_weights/yolov7.pt', force_reload=True, trust_repo=True)
             self.model.eval()
             self.model.conf = 0.6  # confidence threshold (0-1)
             self.model.iou = 0.45  # NMS IoU threshold (0-1)
@@ -57,7 +60,7 @@ class ObjectDetection:
             "watermelon": {"whole": str(static_folder / "watermelon.gif"), "sliced": str(static_folder / "watermelonsliced.webp")},
             "orange": {"whole": str(static_folder / "oranges.gif"), "sliced": str(static_folder / "oranges.jpeg")}
         }
-        return images.get(object_class, {"whole": "https://example.com/default_whole.jpg", "sliced": "https://example.com/default_sliced.jpg"})
+        return images.get(object_class, {"whole": str(static_folder/ f"nd.png"), "sliced": str(static_folder/ f"nd.png")})
 
     def detect_objects(self, frame):
         try:
@@ -90,7 +93,7 @@ class ObjectDetection:
     def reset_detection(self):
         self.detected_object_class = "No object detected"
         self.detected_object_description = "No description available."
-        self.detected_object_images = {"whole": "https://example.com/default_whole.jpg", "sliced": "https://example.com/default_sliced.jpg"}
+        self.detected_object_images = {"whole": str(static_folder/ f"nd.png"), "sliced": str(static_folder/ f"nd.png")}
         self.object_detected = False
 
 detector = ObjectDetection()
@@ -111,9 +114,9 @@ def gen():
 def index():
     return render_template('home.html')
 
-@app.route('/index')
+@app.route('/apppage')
 def adventure():
-    return render_template('index.html')
+    return render_template('apppage.html')
 
 @app.route('/video')
 def video():

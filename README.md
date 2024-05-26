@@ -41,18 +41,28 @@ The Wonderland of Fruits application uses a video feed to detect fruit objects i
 2. **Install Dependencies**:
     Ensure you have Python and pip installed. Then, install the required Python packages:
     ```sh
-    pip install flask
-    pip install openai
-    pip install pathlib
+    python3 -m venv .venv     
+    source .venv/bin/activate  
+    pip install -r requirements.txt
     ```
 
 3. **Run the Flask App**:
     ```sh
-    python app.py
+    python yolov5app.py  # For YOLOv5
+    ```
+
+    Quick Note: 
+    ```
+    The app loads YOLOv5/7 for real-time video inferencing. 
+    This app checks if an object has been detected by a detector object (fruits in our use case).
+    If a fruit is detected, the code proceeds to generate a speech using the OpenAI API. It creates a unique filename for the speech file by appending the current timestamp to the filename. The speech is generated with the text "Hmm, I see a fruit, do you?" using the OpenAI API's text-to-speech functionality.
+    The generated speech is then downloaded and saved to a file path specified by speech_file_path. The response.stream_to_file() method is used to download the file from the URL response and save it to the specified path.
+    Lastly, the code returns a JSON response using the jsonify() function. If an object is detected, it returns the URL of the generated speech file with a cache-busting parameter appended to it. The cache-busting parameter ensures that the latest version of the speech file is always fetched. If no object is detected, it returns an empty hint.
     ```
 
 4. **Access the Application**:
-    Open your web browser and go to `http://127.0.0.1:5000`.
+    Open your web browser and go to `http://127.0.0.1:5000`, this is our Homepage. 
+    Open your web browser and go to `http://127.0.0.1:5000/apppage`, this is our App page. 
 
 ## Usage
 
@@ -68,3 +78,27 @@ The Wonderland of Fruits application uses a video feed to detect fruit objects i
    - Click the "i" button to view a description of the detected object.
 
 ## Project Structure
+
+```plaintext
+wonderland-of-fruits/
+├── yolov5app.py                # Main application script for YOLOv5
+├── templates/
+│   ├── apppage.html            # Main app page
+│   ├── home.html               # Main home page
+├── static/
+│   ├── css/
+│   │   ├── styles.css          # App page CSS
+│   │   ├── homestyle.css       # Homepage CSS
+│   ├── images/
+│   │   ├── apple.jpg           # Repository to fetch fruit images
+│   │   ├── banana.jpg
+│   │   └── ...
+├── model_weights/
+│   ├── yolov5/                 # YOLOv5 model files and weights
+│   ├── yolov7/                 # YOLOv7 model files and weights
+├── .github/workflows/
+│   └── main_fruital.yaml       # GitHub action script for Azure deployment
+├── utils/
+│   └── helpers.py              # Utility functions
+├── requirements.txt            # Python package dependencies
+└── README.md                   # Project documentation
