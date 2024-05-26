@@ -13,13 +13,15 @@ import time
 app = Flask(__name__)
 openai_api_key = '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'
 client = OpenAI(api_key=openai_api_key)
-app.config['STATIC_FOLDER'] = 'static/images'
+
+app.config['STATIC_FOLDER'] = 'static/images'  # Set the static folder for storing images
 static_folder = Path(app.config['STATIC_FOLDER'])
-socketio = SocketIO(app, cors_allowed_origins="*")
+socketio = SocketIO(app, cors_allowed_origins="*")  # Initialize SocketIO for real-time communication
 
 class ObjectDetection:
 
     def __init__(self):
+        # Load the YOLOv5 model
         try:
             self.model = torch.hub.load('WongKinYiu/yolov7', 'custom', './model_weights/yolov7.pt', force_reload=True, trust_repo=True)
             self.model.eval()
@@ -34,17 +36,19 @@ class ObjectDetection:
         self.object_detected = False
 
     def get_description(self, object_class):
+                # Descriptions for various fruit classes
         descriptions = {
-            "grapes": "Grapes are small, juicy fruits that grow in bunches...",
-            "apple": "Apples are crunchy and sweet fruits that come in many colors...",
-            "banana": "Bananas are long, yellow fruits that are very sweet...",
-            "mango": "Mangoes are tropical fruits that are sweet and juicy...",
-            "watermelon": "Watermelons are big, green fruits with a sweet...",
-            "orange": "Oranges are round, orange fruits that are very juicy..."
+             "grapes": "Grapes are small, juicy fruits that grow in bunches. They can be red, green, or purple, and are sweet to eat. You can eat them fresh or use them to make juice, jelly, or raisins.",
+            "apple": "Apples are crunchy and sweet fruits that come in many colors like red, green, and yellow. They are very healthy and make a great snack. You can eat them raw or use them to make apple pie or apple juice.",
+            "banana": "Bananas are long, yellow fruits that are very sweet and soft inside. They are easy to peel and make a perfect snack. You can also use them in smoothies or to make banana bread.",
+            "mango": "Mangoes are tropical fruits that are sweet and juicy. They have a large pit inside and come in different colors like yellow, orange, and red. Mangoes are delicious in smoothies, salads, or just by themselves.",
+            "watermelon": "Watermelons are big, green fruits with a sweet, red inside. They are very juicy and perfect for hot days. You can eat watermelon slices or make refreshing watermelon juice.",
+            "orange": "Oranges are round, orange fruits that are very juicy and sweet. They are full of vitamin C and are great for snacks or for making orange juice."
         }
         return descriptions.get(object_class, "Description not available.")
 
     def get_images(self, object_class):
+                # File paths for images of different fruit classes
         images = {
             "grapes": {"whole": str(static_folder / "grapes.gif"), "sliced": str(static_folder / "grapes.webp")},
             "apple": {"whole": str(static_folder / "apple.gif"), "sliced": str(static_folder / "apple.jpeg")},
@@ -55,6 +59,8 @@ class ObjectDetection:
         }
         return images.get(object_class, {"whole": str(static_folder/ f"nd.png"), "sliced": str(static_folder/ f"nd.png")})
     def detect_objects(self, frame):
+                # Convert the frame to an image and run the detection model
+
         try:
             # Open the image from bytes
             img = Image.open(io.BytesIO(frame))

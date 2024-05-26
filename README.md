@@ -49,6 +49,7 @@ The Wonderland of Fruits application uses a video feed to detect fruit objects i
 3. **Run the Flask App**:
     ```sh
     python yolov5app.py  # For YOLOv5
+    python yolov7app.py  # For YOLOv7- Please run the script twice. Script fails to compile the first time. 
     ```
 
     Quick Note: 

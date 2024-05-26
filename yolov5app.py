@@ -22,15 +22,14 @@ app = Flask(__name__)
 openai_api_key = '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'
 client = OpenAI(api_key=openai_api_key)
 
-app.config['STATIC_FOLDER'] = 'static/images'
+app.config['STATIC_FOLDER'] = 'static/images'  # Set the static folder for storing images
 static_folder = Path(app.config['STATIC_FOLDER'])
-socketio = SocketIO(app, cors_allowed_origins="*")
-
-#socketio = SocketIO(app)
+socketio = SocketIO(app, cors_allowed_origins="*")  # Initialize SocketIO for real-time communication
 
 class ObjectDetection:
 
     def __init__(self):
+        # Load the YOLOv5 model
         self.model = torch.hub.load("ultralytics/yolov5", "custom", path="./model_weights/yolov5.pt", force_reload=True)
         self.model.eval()
         self.model.conf = 0.6  # confidence threshold (0-1)
@@ -42,6 +41,7 @@ class ObjectDetection:
 
 
     def get_description(self, object_class):
+                # Descriptions for various fruit classes
         descriptions = {
             "grapes": "Grapes are small, juicy fruits that grow in bunches. They can be red, green, or purple, and are sweet to eat. You can eat them fresh or use them to make juice, jelly, or raisins.",
             "apple": "Apples are crunchy and sweet fruits that come in many colors like red, green, and yellow. They are very healthy and make a great snack. You can eat them raw or use them to make apple pie or apple juice.",
@@ -53,6 +53,7 @@ class ObjectDetection:
         return descriptions.get(object_class, "Description not available.")
 
     def get_images(self, object_class):
+        # File paths for images of different fruit classes
 
         images = {
             "grapes": {
@@ -83,8 +84,10 @@ class ObjectDetection:
         return images.get(object_class, {"whole": str(static_folder/ f"nd.png"), "sliced": str(static_folder/ f"nd.png")})
 
     def detect_objects(self, frame):
+                # Convert the frame to an image and run the detection model
         img = Image.open(io.BytesIO(frame))
         results = self.model(img, size=640)
+        # Check if any objects are detected
 
         if results.xyxy[0].shape[0] > 0:
             self.detected_object_class = results.names[int(results.xyxy[0][0][5])]
@@ -100,6 +103,8 @@ class ObjectDetection:
             self.object_detected = False
             socketio.emit('fruit_detected', {'detected': False})
             print("No object detected")
+           
+            # Render the detection results on the image
 
         img = np.squeeze(results.render())
         
@@ -110,17 +115,17 @@ class ObjectDetection:
 detector = ObjectDetection()
 
 def gen():
-    cap = cv2.VideoCapture(0)
+    cap = cv2.VideoCapture(0)  # Open the default webcam
     while cap.isOpened():
-        success, frame = cap.read()
+        success, frame = cap.read()  # Capture a frame from the webcam
         if success:
-            ret, buffer = cv2.imencode('.jpg', frame)
-            frame = buffer.tobytes()
-            frame = detector.detect_objects(frame)
-
+            ret, buffer = cv2.imencode('.jpg', frame)  # Encode the frame as JPEG
+            frame = buffer.tobytes()  # Convert the encoded image to bytes
+            frame = detector.detect_objects(frame)  # Detect objects in the frame
+            # Stream the frame as a multipart HTTP response
             yield (b'--frame\r\n'b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')
         else:
-            break
+            break  #
 
 @app.route('/')
 def index():
@@ -204,3 +209,9 @@ def hint():
 if __name__ == "__main__":
     port = int(os.environ.get('PORT', 5000))
     app.run(debug=True, host='0.0.0.0', port=port)
+
+
+
+
+
+
