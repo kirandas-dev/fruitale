@@ -50,12 +50,30 @@ class ObjectDetection:
     def get_images(self, object_class):
                 # File paths for images of different fruit classes
         images = {
-            "grapes": {"whole": str(static_folder / "grapes.gif"), "sliced": str(static_folder / "grapes.webp")},
-            "apple": {"whole": str(static_folder / "apple.gif"), "sliced": str(static_folder / "apple.jpeg")},
-            "banana": {"whole": str(static_folder / "banana.gif"), "sliced": str(static_folder / "banana.png")},
-            "mango": {"whole": str(static_folder / "mangoes.gif"), "sliced": str(static_folder / "mangoes.webp")},
-            "watermelon": {"whole": str(static_folder / "watermelon.gif"), "sliced": str(static_folder / "watermelonsliced.webp")},
-            "orange": {"whole": str(static_folder / "oranges.gif"), "sliced": str(static_folder / "oranges.jpeg")}
+            "grapes": {
+                "whole": str(static_folder/ f"grapes.gif"),
+                "sliced": str(static_folder/ f"grape_cut.jpg")
+            },
+            "apple": {
+                "whole": str(static_folder/ f"apple.gif"),
+                "sliced": str(static_folder/ f"apple.jpeg")
+            },
+            "banana": {
+                "whole": str(static_folder/ f"banana.gif"),
+                "sliced": str(static_folder/ f"banana.png")
+            },
+            "mango": {
+               "whole": str(static_folder/ f"mangoes.gif"),
+                "sliced": str(static_folder/ f"mangoes.webp")
+            },
+            "watermelon": {
+               "whole": str(static_folder/ f"watermelon.gif"),
+                "sliced": str(static_folder/ f"watermelonsliced.webp")
+            },
+            "orange": {
+              "whole": str(static_folder/ f"oranges.gif"),
+                "sliced": str(static_folder/ f"oranges.jpeg")
+            }
         }
         return images.get(object_class, {"whole": str(static_folder/ f"nd.png"), "sliced": str(static_folder/ f"nd.png")})
     def detect_objects(self, frame):

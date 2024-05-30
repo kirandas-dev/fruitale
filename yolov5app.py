@@ -58,7 +58,7 @@ class ObjectDetection:
         images = {
             "grapes": {
                 "whole": str(static_folder/ f"grapes.gif"),
-                "sliced": str(static_folder/ f"grapes.webp")
+                "sliced": str(static_folder/ f"grape_cut.jpg")
             },
             "apple": {
                 "whole": str(static_folder/ f"apple.gif"),
